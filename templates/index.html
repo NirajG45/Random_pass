@@ -3,86 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <title>Password45Generator</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='password.css') }}">
 </head>
 <body>
-  <div class="container">
-    <h1>🔐 Secure Password Generator</h1>
+<div class="container">
+  <h1>🔐 Secure Password Generator</h1>
 
-    <div class="controls">
-      <label>Password Length: <span id="lenValue">12</span></label>
-      <input type="range" min="4" max="32" value="12" id="lengthRange">
+  <label>Password Length: <span id="lenValue">12</span></label>
+  <input type="range" min="4" max="32" value="12" id="lengthRange">
 
-      <div class="checkboxes">
-        <label><input type="checkbox" id="upper" checked> Uppercase (A-Z)</label>
-        <label><input type="checkbox" id="lower" checked> Lowercase (a-z)</label>
-        <label><input type="checkbox" id="digits" checked> Numbers (0-9)</label>
-        <label><input type="checkbox" id="symbols" checked> Symbols (!@#...)</label>
-      </div>
-
-      <button onclick="generatePassword()">Generate Password</button>
-    </div>
-
-    <div class="output">
-      <input type="text" id="passwordOutput" readonly>
-      <button onclick="copyPassword()" title="Copy to clipboard">📋</button>
-    </div>
-
-    <div class="strength" id="strengthIndicator">Strength: <span>Check</span></div>
+  <div class="checkboxes">
+    <label><input type="checkbox" id="upper" checked> Uppercase (A-Z)</label>
+    <label><input type="checkbox" id="lower" checked> Lowercase (a-z)</label>
+    <label><input type="checkbox" id="digits" checked> Numbers (0-9)</label>
+    <label><input type="checkbox" id="symbols" checked> Symbols (!@#...)</label>
   </div>
 
-  <script>
-    const slider = document.getElementById("lengthRange");
-    const lenVal = document.getElementById("lenValue");
-    const output = document.getElementById("passwordOutput");
-    const strengthText = document.getElementById("strengthIndicator").querySelector('span');
+  <button onclick="generatePassword()">Generate Password</button>
 
-    slider.oninput = () => {
-      lenVal.textContent = slider.value;
-    };
+  <div class="output">
+    <input type="text" id="passwordOutput" readonly>
+    <button onclick="copyPassword()">📋</button>
+  </div>
 
-    async function generatePassword() {
-      const res = await fetch('/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          length: slider.value,
-          upper: document.getElementById("upper").checked,
-          lower: document.getElementById("lower").checked,
-          digits: document.getElementById("digits").checked,
-          symbols: document.getElementById("symbols").checked,
-        })
-      });
-      const data = await res.json();
-      output.value = data.password;
-      checkStrength(data.password);
-    }
+  <div class="strength" id="strengthIndicator">Strength: <span>Check</span></div>
 
-    function copyPassword() {
-      output.select();
-      document.execCommand("copy");
-      alert("Password copied to clipboard!");
-    }
+  <div id="historyBox">
+    <h3>🕓 Recent Passwords</h3>
+    <ul id="historyList"></ul>
+  </div>
+</div>
 
-    function checkStrength(pw) {
-      let score = 0;
-      if (pw.length >= 12) score++;
-      if (/[A-Z]/.test(pw)) score++;
-      if (/[a-z]/.test(pw)) score++;
-      if (/\d/.test(pw)) score++;
-      if (/[!@#$%^&*]/.test(pw)) score++;
+<script>
+const slider = document.getElementById("lengthRange");
+const lenVal = document.getElementById("lenValue");
+const output = document.getElementById("passwordOutput");
+const strengthText = document.getElementById("strengthIndicator").querySelector('span');
 
-      if (score <= 2) {
-        strengthText.textContent = 'Weak';
-        strengthText.style.color = 'red';
-      } else if (score <= 4) {
-        strengthText.textContent = 'Moderate';
-        strengthText.style.color = 'orange';
-      } else {
-        strengthText.textContent = 'Strong';
-        strengthText.style.color = 'lightgreen';
-      }
-    }
-  </script>
+slider.oninput = () => lenVal.textContent = slider.value;
+
+async function generatePassword() {
+  const res = await fetch('/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      length: slider.value,
+      upper: document.getElementById("upper").checked,
+      lower: document.getElementById("lower").checked,
+      digits: document.getElementById("digits").checked,
+      symbols: document.getElementById("symbols").checked,
+    })
+  });
+  const data = await res.json();
+  if (data.password) {
+    output.value = data.password;
+    checkStrength(data.password);
+    loadHistory();
+  } else {
+    alert(data.error);
+  }
+}
+
+function copyPassword() {
+  output.select();
+  document.execCommand("copy");
+  alert("Copied!");
+}
+
+function checkStrength(pw) {
+  let score = 0;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  if (score <= 2) {
+    strengthText.textContent = 'Weak';
+    strengthText.style.color = 'red';
+  } else if (score <= 4) {
+    strengthText.textContent = 'Moderate';
+    strengthText.style.color = 'orange';
+  } else {
+    strengthText.textContent = 'Strong';
+    strengthText.style.color = 'lightgreen';
+  }
+}
+
+async function loadHistory() {
+  const res = await fetch('/history');
+  const data = await res.json();
+  const list = document.getElementById("historyList");
+  list.innerHTML = "";
+  data.history.forEach(item => {
+    const li = document.createElement("li");
+    li.textContent = `${item.password} (${item.time})`;
+    list.appendChild(li);
+  });
+}
+
+window.onload = loadHistory;
+</script>
 </body>
 </html>
