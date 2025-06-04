@@ -4,22 +4,55 @@ import string
 
 app = Flask(__name__)
 
-def generate_password(length, use_upper, use_lower, use_digits, use_symbols):
+def build_char_pool(options):
+    """Builds the pool of characters based on user selection."""
     pool = ''
-    if use_upper:
+    if options['upper']:
         pool += string.ascii_uppercase
-    if use_lower:
+    if options['lower']:
         pool += string.ascii_lowercase
-    if use_digits:
+    if options['digits']:
         pool += string.digits
-    if use_symbols:
+    if options['symbols']:
         pool += string.punctuation
+    return pool
 
-    if not pool:
-        return "Select at least one character type."
+def validate_options(length, options):
+    """Ensures user has given valid password constraints."""
+    if length < 4:
+        return False, "Password length must be at least 4."
+    if not any(options.values()):
+        return False, "At least one character type must be selected."
+    return True, ""
 
-    password = ''.join(random.choices(pool, k=length))
-    return password
+def generate_password(length, options):
+    """Generates a secure password based on user options."""
+    pool = build_char_pool(options)
+
+    # Validate again
+    valid, msg = validate_options(length, options)
+    if not valid:
+        return None, msg
+
+    # Guarantee at least one of each selected type
+    password = []
+    if options['upper']:
+        password.append(random.choice(string.ascii_uppercase))
+    if options['lower']:
+        password.append(random.choice(string.ascii_lowercase))
+    if options['digits']:
+        password.append(random.choice(string.digits))
+    if options['symbols']:
+        password.append(random.choice(string.punctuation))
+
+    # Fill remaining characters from the pool
+    remaining_length = length - len(password)
+    password += random.choices(pool, k=remaining_length)
+
+    # Shuffle the result to make it secure
+    random.shuffle(password)
+
+    return ''.join(password), ""
 
 @app.route('/')
 def index():
@@ -27,16 +60,28 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    data = request.json
-    length = int(data['length'])
-    password = generate_password(
-        length,
-        data.get('upper'),
-        data.get('lower'),
-        data.get('digits'),
-        data.get('symbols')
-    )
-    return jsonify({'password': password})
+    try:
+        data = request.get_json()
+        length = int(data.get('length', 12))
+        options = {
+            'upper': data.get('upper', False),
+            'lower': data.get('lower', False),
+            'digits': data.get('digits', False),
+            'symbols': data.get('symbols', False),
+        }
+
+        valid, message = validate_options(length, options)
+        if not valid:
+            return jsonify({'error': message}), 400
+
+        password, error = generate_password(length, options)
+        if error:
+            return jsonify({'error': error}), 400
+
+        return jsonify({'password': password})
+
+    except Exception as e:
+        return jsonify({'error': 'Internal server error: ' + str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
