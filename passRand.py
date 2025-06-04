@@ -57,7 +57,7 @@ def get_password_history():
     return session.get('history', [])
 
 @app.route('/')
-def index():
+def password():
     return render_template('index.html')
 
 @app.route('/generate', methods=['POST'])
