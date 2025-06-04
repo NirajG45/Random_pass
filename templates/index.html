@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Password Generator</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <h1>🔐 Random Password Generator</h1>
+    
+    <label for="length">Password Length: <span id="lenValue">12</span></label>
+    <input type="range" min="4" max="32" value="12" id="lengthRange">
+    
+    <button onclick="generatePassword()">Generate Password</button>
+    
+    <div class="output">
+      <input type="text" id="passwordOutput" readonly>
+      <button onclick="copyPassword()">📋</button>
+    </div>
+  </div>
+
+  <script>
+    const slider = document.getElementById("lengthRange");
+    const lenVal = document.getElementById("lenValue");
+    const output = document.getElementById("passwordOutput");
+
+    slider.oninput = () => {
+      lenVal.textContent = slider.value;
+    };
+
+    async function generatePassword() {
+      const res = await fetch('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ length: slider.value })
+      });
+      const data = await res.json();
+      output.value = data.password;
+    }
+
+    function copyPassword() {
+      output.select();
+      document.execCommand("copy");
+      alert("Password copied to clipboard!");
+    }
+  </script>
+</body>
+</html>
